@@ -1,0 +1,53 @@
+#include <ultrasound.h>
+#include "intrins.h"
+
+sbit Tx = P1 ^ 0;
+sbit Rx = P1 ^ 1;
+
+void Delay12us() //@12.000MHz
+{
+	unsigned char i;
+
+	_nop_();
+	_nop_();
+	i = 38;
+	while (--i);
+}
+
+void Ut_Wave_Init() // 超声波初始化函数 产生8个40Mhz的方波信号
+{
+	unsigned char i;
+	for (i = 0; i < 8; i++)
+	{
+		Tx = 1;
+		Delay12us();
+		Tx = 0;
+		Delay12us();
+	}
+}
+
+unsigned char Ut_Wave_Data()
+{
+    unsigned int time;
+    CH = CL = 0; // 清空PCA寄存器计数值
+    CCON = 0;    // 初始化PCA控制寄存器/PCA定时器停止/清除CF/
+
+    EA = 0;           // 关闭总中断
+    Ut_Wave_Init();   // 发送超声波驱动信号
+    EA = 1;           // 开启总中断
+    CR = 1;           // PCA开始计数
+    while (Rx && !CF); // TF1
+            // 等待接收
+    CR = 0;           // PCA停止计数
+    if (CF == 0)
+    {
+        time = CH << 8 | CL; // 单位为毫秒
+        // L=V*T/2
+        return (time * 0.017); // 返回的单位是cm
+    }
+    else
+    {
+        CF = 0;
+        return 0;
+    }
+}
